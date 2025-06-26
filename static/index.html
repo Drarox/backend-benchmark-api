@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Benchmark Results</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            margin: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            max-width: 1200px;
+            max-height: 500px;
+            height: 300px;
+            margin: 3rem auto;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 3rem;
+            color: #444;
+        }
+        table {
+            margin: 3rem auto;
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 1000px;
+            font-size: 1rem;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        #envTable {
+            margin: 3rem auto;
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 800px;
+            font-size: 1rem;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+        #envTable th, #envTable td {
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+        #envTable th {
+            background-color: #f0f0f0;
+            width: 200px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            font-size: 0.9em;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🚀 Benchmark Results Dashboard</h1>
+
+<h2>📈 Requests per Second</h2>
+<canvas id="requestsChart"></canvas>
+
+<h2>⏱️ Average Latency (ms)</h2>
+<canvas id="latencyChart"></canvas>
+
+<h2>📤 Transfer per Second (kB)</h2>
+<canvas id="transferChart"></canvas>
+
+<h2>📊 Full Results Table (Sorted by Requests/sec)</h2>
+<table id="resultsTable">
+    <thead>
+    <tr>
+        <th>Framework</th>
+        <th>Requests/sec</th>
+        <th>Avg Latency (ms)</th>
+        <th>Transfer/sec (kB)</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h2>🛠 Benchmark Environment</h2>
+<table id="envTable">
+    <tbody>
+    <tr><th>OS</th><td id="os"></td></tr>
+    <tr><th>CPU</th><td id="cpu"></td></tr>
+    <tr><th>RAM</th><td id="ram"></td></tr>
+    <tr><th>Date</th><td id="date"></td></tr>
+    <tr><th>Benchmark Command</th><td id="benchmark_command"></td></tr>
+    <tr><th>Python Version</th><td id="python_version"></td></tr>
+    <tr><th>Node Version</th><td id="node_version"></td></tr>
+    <tr><th>Bun Version</th><td id="bun_version"></td></tr>
+    <tr><th>Deno Version</th><td id="deno_version"></td></tr>
+    <tr><th>Go Version</th><td id="go_version"></td></tr>
+    </tbody>
+</table>
+
+<footer>
+    Results generated using <a href="https://github.com/Drarox/Backend-Benchmark" target="_blank" style="color: #555; text-decoration: none;">
+    Drarox/Backend-Benchmark
+</a>
+</footer>
+
+<script>
+    // Function to create a Chart.js bar chart
+    function createChart(ctxId, label, data, color) {
+        const ctx = document.getElementById(ctxId);
+        if (!ctx) return; // Ensure canvas element exists
+
+        // Destroy existing chart instance on the canvas if it exists, to prevent rendering issues
+        if (Chart.getChart(ctx)) {
+            Chart.getChart(ctx).destroy();
+        }
+
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.framework),
+                datasets: [{
+                    label,
+                    data: data.map(d => d.value),
+                    backgroundColor: color,
+                    borderColor: '#111',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // Function to populate the environment table
+    function populateEnvTable(systemInfo) {
+        if (!systemInfo) return; // Ensure systemInfo is not null or undefined
+
+        document.getElementById('os').textContent = systemInfo.os || 'N/A';
+        document.getElementById('cpu').textContent = systemInfo.cpu || 'N/A';
+        document.getElementById('ram').textContent = systemInfo.ram || 'N/A';
+        document.getElementById('date').textContent = systemInfo.date || 'N/A';
+        document.getElementById('benchmark_command').textContent = systemInfo.benchmark_command || 'N/A';
+        document.getElementById('python_version').textContent = systemInfo.python_version || 'N/A';
+        document.getElementById('node_version').textContent = systemInfo.node_version || 'N/A';
+        document.getElementById('bun_version').textContent = systemInfo.bun_version || 'N/A';
+        document.getElementById('deno_version').textContent = systemInfo.deno_version || 'N/A';
+        document.getElementById('go_version').textContent = systemInfo.go_version || 'N/A';
+    }
+
+    // Function to populate the results table
+    function populateResultsTable(results) {
+        const tableBody = document.querySelector("#resultsTable tbody");
+        if (!tableBody || !results) return; // Ensure tableBody and results are not null or undefined
+
+        // Sort results by requests_per_sec in descending order
+        const sortedData = [...results].sort((a, b) => b.requests_per_sec - a.requests_per_sec);
+        tableBody.innerHTML = ''; // Clear existing content
+
+        sortedData.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+        <td>${row.framework}</td>
+        <td>${row.requests_per_sec.toFixed(2)}</td>
+        <td>${row.avg_latency_ms.toFixed(2)}</td>
+        <td>${row.transfer_kb_sec.toFixed(2)}</td>
+      `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    // Main function to fetch and display data
+    async function fetchAndDisplayResults() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get('id');
+
+        if (!id) {
+            console.warn("No benchmark ID provided in the URL. Please append `?id=<your_id>` to the URL.");
+            return;
+        }
+
+        try {
+            const apiUrl = `/results/${id}`; // Your API endpoint
+            const response = await fetch(apiUrl);
+
+            if (!response.ok) {
+                console.error(`HTTP error! status: ${response.status}`);
+                return; // Exit if response is not ok
+            }
+
+            const data = await response.json();
+
+            const results = data.results;
+            const systemInfo = data.system_info;
+
+            // Sort individually for each chart as per original script
+            const rpsSorted = [...results].sort((a, b) => a.requests_per_sec - b.requests_per_sec);
+            const latencySorted = [...results].sort((a, b) => b.avg_latency_ms - a.avg_latency_ms);
+            const transferSorted = [...results].sort((a, b) => a.transfer_kb_sec - b.transfer_kb_sec);
+
+            createChart('requestsChart', 'Requests/sec', rpsSorted.map(d => ({ framework: d.framework, value: d.requests_per_sec })), '#0d6efd');
+            createChart('latencyChart', 'Average Latency (ms)', latencySorted.map(d => ({ framework: d.framework, value: d.avg_latency_ms })), '#dc3545');
+            createChart('transferChart', 'Transfer/sec (kB)', transferSorted.map(d => ({ framework: d.framework, value: d.transfer_kb_sec })), '#198754');
+
+            populateResultsTable(results);
+            populateEnvTable(systemInfo);
+
+        } catch (error) {
+            console.error('Error fetching or processing data:', error);
+        }
+    }
+
+    // Call the main function when the window loads
+    window.onload = fetchAndDisplayResults;
+</script>
+</body>
+</html>

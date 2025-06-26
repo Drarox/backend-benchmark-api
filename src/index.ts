@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import mongoose from 'mongoose';
 import { ResultsModel } from './models/ResultsModel';
+import { serveStatic } from 'hono/bun';
 
 const app = new Hono();
 
@@ -39,5 +40,7 @@ app.get('/results/:id', async (c) => {
     return c.json({ error: 'Invalid ID' }, 400);
   }
 });
+
+app.use('/*', serveStatic({ root: './static/' }));
 
 export default app;
